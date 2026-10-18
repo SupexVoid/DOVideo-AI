@@ -1,57 +1,116 @@
-<div align="center">
-  <h2>DOVideo-AI</h2>
-  
-  <p>
-    <img src="https://img.shields.io/badge/Java-21-E76F00?style=flat-square" alt="Java 21">
-    <img src="https://img.shields.io/badge/Spring%20Boot-3.5.9-6DB33F?style=flat-square" alt="Spring Boot 3.5.9">
-    <img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square" alt="Vue 3">
-    <img src="https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square" alt="MySQL 8">
-    <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square" alt="Redis 7">
-    <img src="https://img.shields.io/badge/RocketMQ-5.3.4-D77310?style=flat-square" alt="RocketMQ 5.3.4">
-    <img src="https://img.shields.io/badge/LangChain4j-Agent-20232A?style=flat-square" alt="LangChain4j">
-    <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="MIT License"></a>
-  </p>
-</div>
+# DoVideo-AI
 
-<div align="center">
+面向视频内容理解的工作台：导入视频、提取文字，围绕分析目标生成带时间戳证据的结构化内容。
 
-面向长视频内容理解的 <strong>Video Agent</strong>。
-
-致力于将长视频转化为可检索、可追溯、可继续追问的结构化知识。
-
-
-
-</div>
+本仓库基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发。当前改动聚焦前端视觉统一与功能展示，沿用原有 Vue 3、接口、鉴权和任务流程。感谢原项目提供的视频处理链路、Video Agent 实现与测试基础；版权与许可见 [LICENSE](LICENSE)。
 
 ## 项目预览
 
-**登录与注册**
+以下图片均于 2026-10-17 从本地实际运行的改版前端截取，使用仓库内相对路径，未使用原作者截图替代本次效果。
 
-![DOVideo-AI 登录与注册](docs/images/login-register.png)
+带 **demo** 的图片使用原项目自带的 `?demo` 固定示例；课程条目、转写、AI 结果、执行耗时与评估比例均为内置示例，**不是本次上传视频、调用模型或性能测试产生的结果**。演示页面也有明确提示；它不提供原视频播放。
 
-**视频工作台**
+### 导入与视频资料库
 
-![DOVideo-AI 视频工作台](docs/images/video-library.png)
+本地文件与链接导入集中在工作台中；资料列表显示文件名称、时间、处理状态，以及下载音频、提取文字和 Video Agent 的已有入口。
 
-**Agent 目标输入**
+![视频工作台与导入入口](docs/images/workspace-import.jpg)
 
-![DOVideo-AI Agent 目标输入](docs/images/agent-compose.png)
+资料库示例：可按名称搜索视频，并进入文字或 AI 内容处理。此处只有一条原有内置课程数据，没有人为补充用户数量或虚假任务。
 
-**Agent 分析结果**
+![视频资料库，内置示例](docs/images/workspace-library-demo.jpg)
 
-![DOVideo-AI Agent 分析结果](docs/images/agent-result.png)
+### 设置分析任务
 
+选择通用、学习、审查、创作或自动模式，填写目标，或使用已有的学习笔记、会议纪要、操作手册预设。左侧保留视频与当前目标的上下文，右侧专注任务设置。
 
+![分析模式与目标设置，内置示例](docs/images/agent-compose-demo.jpg)
 
-用户完成登录后，可以上传视频并在工作台管理解析任务；选择视频并输入分析目标后，可以手动选择分析模式，也可以交给 Agent 自动判断。工作台会展示结构化结论、时间戳证据、执行计划、阶段轨迹与质量评估，并支持基于同一视频继续追问；追问历史会通过 Redis 保存，模型可结合多轮对话上下文作答。
+### 结构化结果与证据
 
-## 核心功能
+在同一面板中阅读结论、时间戳证据与建议，使用复制、Markdown 导出与分析详情入口。截图中的结果为内置示例；真实视频播放、证据跳转、检索与模型生成仍需后端联调。
 
-长视频处理天然是**长耗时、高资源消耗、外部调用成本敏感**的场景。DOVideo-AI 的设计都围绕这一背景展开，可以概括为四层能力。
+![AI 结构化内容，内置示例](docs/images/agent-result-demo.jpg)
+
+![时间戳证据、建议与任务计划，内置示例](docs/images/agent-evidence-demo.jpg)
+
+### 文字转写
+
+已有转写面板提供全文、字数、复制与文本导出。本次实际检查了示例内容的显示与导出；截图中的 30 字文本不是本次 ASR 调用结果。
+
+![文字转写面板，内置示例](docs/images/transcript-demo.jpg)
+
+<details>
+<summary>登录、注册与手机页面</summary>
+
+登录与注册使用一致的表单布局，保留原有字段、校验、鉴权与切换流程。截图未填写密码或个人资料；本次没有连接后端完成注册或登录。
+
+![登录窗口](docs/images/auth-login.jpg)
+
+![注册窗口](docs/images/auth-register.jpg)
+
+手机检查使用实际 390px CSS 视口。上传区域上下排列，分析面板按视频与内容垂直展示，注册窗口在屏幕内滚动。
+
+<img src="docs/images/mobile-register.jpg" alt="手机注册窗口" width="280" />
+<img src="docs/images/mobile-analysis-demo.jpg" alt="手机分析详情，内置示例" width="280" />
+
+</details>
+
+## 本仓库改动与开发边界
+
+| 范围 | 当前状态 |
+| --- | --- |
+| 原有能力 | 视频导入、资料库、异步处理、转写、Video Agent、检索、SSE、任务恢复等均来自原项目；本次未重写业务实现 |
+| 界面改进 | 浅灰背景与白色面板、统一字体与按钮、蓝紫色主操作、列表布局、桌面双栏详情、手机适配、演示来源提示 |
+| 文档改进 | 本地截图、功能说明、来源致谢、运行方式与验证边界 |
+| 后续业务扩展 | 本次没有新增；口播编辑等想法尚未实现，不作为当前功能展示 |
+
+之前的深色荧光、斜切上传区与宣传式标题，已调整为任务导向的工作台。视觉约定见 [DESIGN.md](DESIGN.md)。
+
+<details>
+<summary>改版前截图（本次从原有界面运行截取）</summary>
+
+![改版前的首页](docs/images/before-workspace.jpg)
+
+</details>
+
+## 先查看前端
+
+安装 Node.js 22 或更新的兼容版本，在仓库根目录运行：
+
+```bash
+cd client
+npm ci
+npm run dev -- --host 127.0.0.1
+```
+
+- 工作台：`http://127.0.0.1:5173/`
+- 内置界面演示：`http://127.0.0.1:5173/?demo`（无需后端，固定示例不代表真实处理）
+- 正常业务默认通过 Vite 代理访问 `http://localhost:9090`；鉴权、上传和真实分析需要完整后端环境。
+- 现有应用没有独立前端路由，登录、转写和分析通过弹层展示。
+
+## 本次验证（2026-10-17）
+
+| 项目 | 结果 |
+| --- | --- |
+| 生产构建 | 通过，Vite build |
+| 前端现有测试 | 25/25 通过，覆盖 API 会话、上传恢复、任务事件、分析工作区及时间戳 |
+| 桌面与手机界面 | 已检查导入、列表、搜索空态、登录/注册、任务设置、转写与结果面板；修复手机注册窗口溢出 |
+| 关键前端操作 | 已检查未登录导入拦截、必填校验、模式/目标预设、搜索与清除、Escape 关闭、示例结果切换、复制和文件导出 |
+| 完整后端链路 | 未验收：本机 `9090/health` 不可用，未配置运行所需的中间件与模型服务 |
+| 真实媒体与 AI | 未验收：上传/断点续传联调、真实 ASR/OCR、视频播放跳转、证据检索、SSE 和真实 AI 生成均不由演示截图证明 |
+
+现有依赖审计另报告 **4 项 high 告警**，涉及 Vue 及其依赖；本次未升级依赖、未改锁文件。详情、复现命令与截图清单见 [界面验收记录](docs/ui-redesign-validation.md)。
+
+## 原有核心能力
+
+以下能力继承自原项目，按代码与原 README 的分类整理；本次完成的是前端视觉与交互展示检查，不等同于以下后端链路已在本机验收。
+
+长视频处理是**长耗时、高资源消耗、外部调用成本敏感**的场景。DoVideo-AI 的设计都围绕这一背景展开，可以概括为四层能力。
 
 ### 🎬 可靠的视频任务链路
 
-> 把大文件上传与耗时的视频解析从请求主链路中剥离，提交即返回，不阻塞、不重复烧钱。
+> 把大文件上传与耗时的视频解析从请求主链路中剥离，通过异步任务、幂等控制和重试机制管理长耗时处理。
 
 - **分片上传 + 断点续传** — 前端按 5 MB 分片，Redis 记录已完成分片，MinIO 保存合并后的视频，弱网中断后可从断点续传。
 - **异步削峰** — RocketMQ 将视频解析移出请求线程，提交后立即返回任务 ID；Redisson 按「内容指纹 + 分析目标」加锁，拦截并发与重复消费。
@@ -74,7 +133,7 @@ Evidence frame_000125.jpg
 
 ### 🔁 有证据约束的 AgentLoop
 
-> 每条结论都必须绑定可在原始视频中核验的时间戳证据，拒绝模型自由发挥。
+> 每条结论都必须绑定可在原始视频中核验的时间戳证据，通过证据约束与程序校验降低无依据结论的风险。
 
 - **角色分工** — Planner 将用户目标拆成可执行任务，Executor 生成固定结构的结论、证据与建议。
 - **闭环校验** — Critic 检查目标覆盖、结构完整性与时间戳证据；不通过时依据缺失内容和时间范围定向重新检索。
@@ -146,7 +205,7 @@ sequenceDiagram
 | 视频与 AI | FFmpeg、Tesseract、LangChain4j、DeepSeek、TeleSpeechASR、BGE-M3 | 音视频处理、多模态解析、Agent 推理与 Embedding |
 | 部署 | Docker Compose | 本地中间件编排 |
 
-## 本地运行
+## 完整系统运行
 
 ### 环境要求
 
@@ -177,7 +236,7 @@ cp .env.example .env
 
 编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码并设置 `SILICONFLOW_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。
 
-默认 LLM 为 `deepseek-ai/DeepSeek-V3.2`。历史示例模型 `deepseek-ai/DeepSeek-R1-Distill-Qwen-32B` 已被硅基流动禁用，会返回 `Model disabled`。`LLM_TIMEOUT_SECONDS` 默认是 `300`，用于避免长视频证据分析在模型响应尚未返回时过早超时；模型或超时配置变更后需要重启后端。
+`.env.example` 默认 LLM 为 `deepseek-ai/DeepSeek-V3.2`，实际可用性以服务商当前支持为准。`LLM_TIMEOUT_SECONDS` 默认是 `300`，用于避免长视频证据分析在模型响应尚未返回时过早超时；模型或超时配置变更后需要重启后端。
 
 ### 2. 启动中间件
 
@@ -243,7 +302,7 @@ docker compose --env-file .env down
 ## 目录结构
 
 ```text
-DOVideo-AI
+DoVideo-AI
 ├── client/              # Vue 3 工作台
 ├── server/              # Spring Boot API 与 Video Agent
 ├── rocketmq/            # Broker 配置
