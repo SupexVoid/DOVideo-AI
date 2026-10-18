@@ -1,8 +1,7 @@
 <div align="center">
-  <h2>DoVideoAI</h2>
+  <h2>DOVideo-AI</h2>
   
   <p>
-    <a href="https://github.com/Xiaoc7r/DOVideo-AI/stargazers"><img src="https://img.shields.io/github/stars/Xiaoc7r/DOVideo-AI?style=flat-square" alt="GitHub Stars"></a>
     <img src="https://img.shields.io/badge/Java-21-E76F00?style=flat-square" alt="Java 21">
     <img src="https://img.shields.io/badge/Spring%20Boot-3.5.9-6DB33F?style=flat-square" alt="Spring Boot 3.5.9">
     <img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square" alt="Vue 3">
@@ -20,11 +19,6 @@
 
 致力于将长视频转化为可检索、可追溯、可继续追问的结构化知识。
 
-<div align="center">
-
-[![Star History Chart](https://star-history.dera.page/svg?repos=Xiaoc7r/DOVideo-AI&type=Date)](https://star-history.dera.page/#Xiaoc7r/DOVideo-AI&Date)
-
-</div>
 
 
 </div>
@@ -33,21 +27,19 @@
 
 **登录与注册**
 
-![DoVideoAI 登录与注册](docs/images/login-register.png)
+![DOVideo-AI 登录与注册](docs/images/login-register.png)
 
 **视频工作台**
 
-![DoVideoAI 视频工作台](docs/images/video-library.png)
+![DOVideo-AI 视频工作台](docs/images/video-library.png)
 
 **Agent 目标输入**
 
-![DoVideoAI Agent 目标输入](docs/images/agent-compose.png)
+![DOVideo-AI Agent 目标输入](docs/images/agent-compose.png)
 
 **Agent 分析结果**
 
-<img width="2886" height="1656" alt="b89cf519f7189cf823507d5c17b0d88d" src="https://github.com/user-attachments/assets/8bfeed0e-28df-4527-86bf-e549f5516dcc" />
-
-<img width="1776" height="1708" alt="a52abccc6447591c6f9a66ad948c5709" src="https://github.com/user-attachments/assets/9e04ecca-a2a5-4d59-89d7-8f4329858070" />
+![DOVideo-AI Agent 分析结果](docs/images/agent-result.png)
 
 
 
@@ -55,7 +47,7 @@
 
 ## 核心功能
 
-长视频处理天然是**长耗时、高资源消耗、外部调用成本敏感**的场景。DoVideoAI 的设计都围绕这一背景展开，可以概括为四层能力。
+长视频处理天然是**长耗时、高资源消耗、外部调用成本敏感**的场景。DOVideo-AI 的设计都围绕这一背景展开，可以概括为四层能力。
 
 ### 🎬 可靠的视频任务链路
 
@@ -251,7 +243,7 @@ docker compose --env-file .env down
 ## 目录结构
 
 ```text
-DoVideoAI
+DOVideo-AI
 ├── client/              # Vue 3 工作台
 ├── server/              # Spring Boot API 与 Video Agent
 ├── rocketmq/            # Broker 配置
