@@ -141,6 +141,51 @@ class FfmpegMediaExporterTest {
         try(var files=Files.list(task)){assertEquals(List.of(output),files.toList(),"Only completed output may remain");}
     }
 
+    @Test void retriesLegacyFileOptionOnlyWhenModernOptionIsUnsupported() throws Exception {
+        Path source = Files.writeString(dir.resolve("legacy-source"), "source");
+        Path job = Files.createDirectory(dir.resolve("legacy-job"));
+        Path output = job.resolve("result.mp4");
+        AtomicInteger calls = new AtomicInteger();
+        var legacyTools = new FfmpegMediaTools(new com.fasterxml.jackson.databind.ObjectMapper(), "") {
+            @Override MediaInfo probe(Path path) { return new MediaInfo(1000, false); }
+            @Override byte[] execute(List<String> command, Duration timeout, int limit) {
+                if (calls.incrementAndGet() == 1) {
+                    assertTrue(command.contains("-/filter_complex"));
+                    throw new IllegalStateException("Media process failed (exit 8): Unrecognized option '/filter_complex'.");
+                }
+                assertFalse(command.contains("-/filter_complex"));
+                int index = command.indexOf("-filter_complex_script");
+                assertTrue(index > 0);
+                try {
+                    assertTrue(Files.readString(Path.of(command.get(index + 1))).contains("concat=n=1"));
+                    Files.writeString(Path.of(command.getLast()), "legacy encoded");
+                } catch (java.io.IOException e) { throw new RuntimeException(e); }
+                return new byte[0];
+            }
+        };
+        new FfmpegMediaExporter(legacyTools, dir).export(source, List.of(new EditorModels.ClipRange(0, 1000)), output);
+        assertEquals(2, calls.get());
+        assertEquals("legacy encoded", Files.readString(output));
+        try (var files = Files.list(job)) { assertEquals(List.of(output), files.toList()); }
+    }
+
+    @Test void doesNotRetryUnrelatedEncoderErrors() throws Exception {
+        Path source = Files.writeString(dir.resolve("bad-source"), "source");
+        Path job = Files.createDirectory(dir.resolve("bad-job"));
+        AtomicInteger calls = new AtomicInteger();
+        var broken = new FfmpegMediaTools(new com.fasterxml.jackson.databind.ObjectMapper(), "") {
+            @Override MediaInfo probe(Path path) { return new MediaInfo(1000, false); }
+            @Override byte[] execute(List<String> command, Duration timeout, int limit) {
+                calls.incrementAndGet();
+                throw new IllegalStateException("Media process failed (exit 1): encoder unavailable");
+            }
+        };
+        assertThrows(IllegalStateException.class, () -> new FfmpegMediaExporter(broken, dir).export(source,
+            List.of(new EditorModels.ClipRange(0, 1000)), job.resolve("result.mp4")));
+        assertEquals(1, calls.get());
+        try (var files = Files.list(job)) { assertEquals(0, files.count()); }
+    }
+
     /** Lightweight real subprocess validates the generated graph without encoding a thousand streams. */
     public static class FilterFileProcess {
         public static void main(String[] args) throws Exception {

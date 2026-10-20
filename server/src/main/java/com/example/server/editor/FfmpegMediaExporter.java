@@ -62,7 +62,17 @@ public class FfmpegMediaExporter {
             if (media.audio()) command.addAll(List.of("-map", "[a]", "-c:a", "aac"));
             else command.add("-an");
             command.addAll(List.of("-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-f", "mp4", partial.toString()));
-            tools.execute(command, Duration.ofMinutes(10), 64 * 1024);
+            try {
+                tools.execute(command, Duration.ofMinutes(10), 64 * 1024);
+            } catch (IllegalStateException unsupported) {
+                // Older distribution builds lack the file-backed option syntax;
+                // retain bounded arguments with their legacy filter-file option.
+                String message = unsupported.getMessage();
+                if (message == null || !message.startsWith("Media process failed (exit ")
+                        || !message.contains("Unrecognized option '/filter_complex'")) throw unsupported;
+                command.set(command.indexOf("-/filter_complex"), "-filter_complex_script");
+                tools.execute(command, Duration.ofMinutes(10), 64 * 1024);
+            }
             var result = tools.probe(partial);
             if (Math.abs(result.durationMs() - expectedDuration) > 200 || result.audio() != media.audio()) throw new IllegalStateException("Exported media failed duration or audio validation");
             // The worker owns this private job directory. Never replace an existing result.
