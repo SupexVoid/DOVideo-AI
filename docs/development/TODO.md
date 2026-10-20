@@ -11,4 +11,4 @@
 
 用户提供的课程页示例：https://look.tongji.edu.cn/livingroom?course_id=79734&sub_id=1652298&tenant_code=222
 
-当前执行项见 [文本视频编辑计划](docs/superpowers/plans/2026-10-19-text-video-editor.md)。
+当前执行项见 [文本视频编辑计划](superpowers/plans/2026-10-19-text-video-editor.md)。

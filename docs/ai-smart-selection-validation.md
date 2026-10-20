@@ -60,6 +60,6 @@
 
 ## 相关记录
 
-- [实施计划](superpowers/plans/2026-10-20-ai-smart-selection.md)
-- [真实难点与面试决策](text-video-editor-decisions.md)
+- [实施计划](development/superpowers/plans/2026-10-20-ai-smart-selection.md)
+- [真实难点与面试决策](development/text-video-editor-decisions.md)
 - [此前文字剪辑验收](text-video-editor-validation.md)

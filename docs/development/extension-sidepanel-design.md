@@ -93,7 +93,7 @@ intro 里以 `>` 开头的引用块渲染成警告 callout（用于承载「结�
 `tests/markdown.test.js` 覆盖 `lib/markdown.js` 的全部导出：
 
 - `stripThink`：成对标签、只有闭合标签、无标签三种情况
-- `linkifyTimestamps`：`[00:30]`、`[1:02:03]`、已是链接的 `[00:30](...)` 不应二次处理
+- `linkifyTimestamps`：`[00:30]`、`[1:02:03]`、已是链接的 `[00:30](..)` 不应二次处理
 - `parseInline`：粗体/斜体/行内代码/链接/时间戳混排
 - `parseBlocks`：标题层级、有序/无序列表、引用、围栏代码、水平线、段落
 - `groupSections`：卡片切分、标题前的内容进 intro

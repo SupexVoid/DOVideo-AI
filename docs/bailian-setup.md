@@ -31,7 +31,7 @@ BAILIAN_ASR_URL=wss://dashscope.aliyuncs.com/api-ws/v1/inference
 
 `docs/examples/create-text-editor-demo.ps1` 可生成原创合成课程口播。测试自动转写时只上传 MP4，不能先导入生成脚本配套的 SRT。手工字幕、真实 ASR、界面固定 demo 必须分别注明。
 
-已于 2026-10-20 真实调用百炼处理 37.320 秒合成口播并获得 8 个最终句段。这证明该账户与接口可用，不代表真人口音、长视频或剪辑切点已全面验收。完整链路结果见 [验证记录](text-video-editor-validation.md)，实现中的取舍见 [决策与面试记录](text-video-editor-decisions.md)。
+已于 2026-10-20 真实调用百炼处理 37.320 秒合成口播并获得 8 个最终句段。这证明该账户与接口可用，不代表真人口音、长视频或剪辑切点已全面验收。完整链路结果见 [验证记录](text-video-editor-validation.md)，实现中的取舍见 [决策与面试记录](development/text-video-editor-decisions.md)。
 
 ## 协议依据
 

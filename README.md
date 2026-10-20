@@ -1,374 +1,126 @@
 # DoVideo-AI
 
-面向视频内容理解的工作台：导入视频、提取文字，围绕分析目标生成带时间戳证据的结构化内容。
+**像编辑文字一样剪视频，让 AI 帮你找到值得保留的内容。**
 
-本仓库基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发，在统一工作台界面的基础上新增文本驱动视频编辑，复用原有视频导入、鉴权与存储。感谢原项目提供的视频处理链路、Video Agent 实现与测试基础；版权与许可见 [LICENSE](LICENSE)。
-
-## 文本驱动视频编辑
-
-上传视频后进入文本剪辑，配置语音服务后自动生成带时间的句段；也可导入匹配的 SRT/VTT 字幕。按文字回看对应画面、删除或恢复整段、连续预览保留部分、保存方案并异步导出新的 MP4。原视频保持完整。
-
-下面是 2026-10-19 本地真实运行的编辑器，素材为自制合成讲解视频，字幕按实际分段时长手工组装，**不是校园实拍或模型转写结果**。原视频 37.320 秒，删除重录段落后保留 28.8 秒。
-
-![文本剪辑与已保存的选段](docs/images/text-editor-saved-plan.jpg)
-
-点击“二分查找的前提”定位到原视频 9.2 秒，再获取该时刻的真实画面。取消勾选第三段后，预览与成片都应跳过该段。
-
-![文字定位、删除句段与真实帧图](docs/images/text-editor-workspace.jpg)
-
-保存选段后提交异步导出，完成后获取下载地址。该演示成片实际下载并播放，FFprobe 测得 28.800 秒、H.264/AAC、1280×720。
-
-![实际导出完成与成片下载](docs/images/text-editor-export.jpg)
-
-手机编辑器按视频、画面、文本纵向排列，底部保留方案状态与保存/导出入口。
-
-<img src="docs/images/text-editor-mobile.jpg" alt="390px 手机文本编辑器" width="280" />
-
-支持单视频整句段选择；暂不支持单字剪辑、多轨或自由重排。同济 Look 平台关联仅列入 [TODO](TODO.md)，尚未接入校园认证或课程下载。
-
-### 自动生成可剪辑文字（2026-10-20）
-
-新增百炼 Paraformer 适配：上传后生成带起止时间的句段，可与原文字面板共用全文，并供内容分析使用。后台识别继续运行时可以关闭编辑器，重新打开会恢复状态查询。配置方式见 [百炼接入说明](docs/bailian-setup.md)。
-
-本地已真实调用百炼识别自制 37.320 秒口播，在未导入字幕的情况下获得 8 个句段；删除两句重录内容后真实生成并下载 26.140 秒 H.264/AAC 成片。识别有错字及标点差异，当前句段裁剪会缩短句间静音；真人口音、长视频精度及切点自然程度仍需补测。
-
-![百炼真实转写、选段与导出](docs/images/bailian-export.jpg)
-
-转写全文同步至原文字入口，重复提交复用已完成结果。原有 AI 总结所需的文本模型是单独配置；语音模型成功不能代替总结验收，后续真实联调结果见下方“AI 智能选段”。[真实问题与面试决策记录](docs/text-video-editor-decisions.md)。
-
-[设计、技术选择与个人扩展范围](docs/text-video-editor.md) · [实际验证与未验收项](docs/text-video-editor-validation.md) · [自制演示素材生成脚本](docs/examples/create-text-editor-demo.ps1)
-
-2026-10-20 最终验证：后端 139 项测试通过，前端 63 项测试及生产构建通过，缓存迁移独立复审通过。最新版本重启后，已完成文字稿、保存方案与导出结果均可恢复；26.140 秒成片在浏览器实际播放至结尾。
-
-2026-10-19 历史验证：前端 55 项测试及生产构建通过，后端 112 项测试通过；最终运行版本真实 HTTP 验收 23 项通过，另完成上述页面导出下载。文件选择器上传受本地浏览器扩展权限限制，未完成端到端验收；真实分片上传与字幕导入已通过 HTTP 联调。截至当日，旧模型功能和新时间戳 ASR 的真实调用尚未验收；时间戳 ASR 的后续结果见上方 2026-10-20 记录。
-
-## AI 智能选段（2026-10-20）
-
-在文本剪辑中填写目标，例如“保留知识讲解，删除重录与操作说明”。系统根据文字推荐句段，并解释保留理由；用户预览、应用和微调后，复用已有方案保存与 MP4 导出。模型只提供句段编号，真实时间由后端计算。恢复任务不重复提交模型，推荐不自动覆盖或保存手动选段。
-
-本地真实调用硅基流动 `DeepSeek-V3.2`，从同一份百炼 8 句文字稿中选出 3 句，预计 14.120 秒；实际生成、下载并播放至结尾的成片为 14.160 秒，H.264/AAC、1280×720。使用自制合成素材，不代表真人或长对话选段效果验收。
-
-![真实目标与 AI 推荐理由](docs/images/ai-smart-selection.jpg)
-
-原有 AI 总结也已通过真实模型完成调用与页面展示，但本次两轮处理后仍带有 Critic 未完全通过的提示，需人工核对；本机 OCR 未配置，本次依靠语音文字。未将这一结果描述为所有结论质量验收通过。
-
-本轮后端完整 159 项测试、前端完整 76 项测试及生产构建通过，独立复审通过。长稿采用有界分批处理，但真人长素材、切点听感尚未验收。首版只基于文字选段，不判断动作或表情，不自动配音。
-
-[实施计划](docs/superpowers/plans/2026-10-20-ai-smart-selection.md) · [真实验收与限制](docs/ai-smart-selection-validation.md) · [面试决策记录](docs/text-video-editor-decisions.md)
-
-## 项目预览
-
-以下图片均于 2026-10-17 从本地实际运行的改版前端截取，使用仓库内相对路径，未使用原作者截图替代本次效果。
-
-带 **demo** 的图片使用原项目自带的 `?demo` 固定示例；课程条目、转写、AI 结果、执行耗时与评估比例均为内置示例，**不是本次上传视频、调用模型或性能测试产生的结果**。演示页面也有明确提示；它不提供原视频播放。
-
-### 导入与视频资料库
-
-本地文件与链接导入集中在工作台中；资料列表显示文件名称、时间、处理状态，以及下载音频、提取文字和 Video Agent 的已有入口。
-
-![视频工作台与导入入口](docs/images/workspace-import.jpg)
-
-资料库示例：可按名称搜索视频，并进入文字或 AI 内容处理。此处只有一条原有内置课程数据，没有人为补充用户数量或虚假任务。
-
-![视频资料库，内置示例](docs/images/workspace-library-demo.jpg)
-
-### 设置分析任务
-
-选择通用、学习、审查、创作或自动模式，填写目标，或使用已有的学习笔记、会议纪要、操作手册预设。左侧保留视频与当前目标的上下文，右侧专注任务设置。
-
-![分析模式与目标设置，内置示例](docs/images/agent-compose-demo.jpg)
-
-### 结构化结果与证据
-
-在同一面板中阅读结论、时间戳证据与建议，使用复制、Markdown 导出与分析详情入口。截图中的结果为内置示例；真实视频播放、证据跳转、检索与模型生成仍需后端联调。
-
-![AI 结构化内容，内置示例](docs/images/agent-result-demo.jpg)
-
-![时间戳证据、建议与任务计划，内置示例](docs/images/agent-evidence-demo.jpg)
-
-### 文字转写
-
-已有转写面板提供全文、字数、复制与文本导出。本次实际检查了示例内容的显示与导出；截图中的 30 字文本不是本次 ASR 调用结果。
-
-![文字转写面板，内置示例](docs/images/transcript-demo.jpg)
-
-<details>
-<summary>登录、注册与手机页面</summary>
-
-登录与注册使用一致的表单布局，保留原有字段、校验、鉴权与切换流程。截图未填写密码或个人资料；本次没有连接后端完成注册或登录。
-
-![登录窗口](docs/images/auth-login.jpg)
-
-![注册窗口](docs/images/auth-register.jpg)
-
-手机检查使用实际 390px CSS 视口。上传区域上下排列，分析面板按视频与内容垂直展示，注册窗口在屏幕内滚动。
-
-<img src="docs/images/mobile-register.jpg" alt="手机注册窗口" width="280" />
-<img src="docs/images/mobile-analysis-demo.jpg" alt="手机分析详情，内置示例" width="280" />
-
-</details>
-
-## 本仓库改动与开发边界
-
-| 范围 | 当前状态 |
-| --- | --- |
-| 原有能力 | 视频导入、资料库、异步处理、转写、Video Agent、检索、SSE、任务恢复等均来自原项目；本次未重写业务实现 |
-| 界面改进 | 浅灰背景与白色面板、统一字体与按钮、蓝紫色主操作、列表布局、桌面双栏详情、手机适配、演示来源提示 |
-| 文档改进 | 本地截图、功能说明、来源致谢、运行方式与验证边界 |
-| 新增业务模块 | 文本时间轴、句段选择、画面定位、方案版本保存、异步 MP4 导出；百炼短合成口播的真实 ASR、选段与导出已验证 |
-| 后续扩展 | 同济 Look 平台关联；尚未接入校园认证、课程抓取或下载 |
-
-之前的深色荧光、斜切上传区与宣传式标题，已调整为任务导向的工作台。视觉约定见 [DESIGN.md](DESIGN.md)。
-
-<details>
-<summary>改版前截图（本次从原有界面运行截取）</summary>
-
-![改版前的首页](docs/images/before-workspace.jpg)
-
-</details>
-
-## 先查看前端
-
-安装 Node.js 22 或更新的兼容版本，在仓库根目录运行：
-
-```bash
-cd client
-npm ci
-npm run dev -- --host 127.0.0.1
-```
-
-- 工作台：`http://127.0.0.1:5173/`
-- 内置界面演示：`http://127.0.0.1:5173/?demo`（无需后端，固定示例不代表真实处理）
-- 正常业务默认通过 Vite 代理访问 `http://localhost:9090`；鉴权、上传和真实分析需要完整后端环境。
-- 现有应用没有独立前端路由，登录、转写和分析通过弹层展示。
-
-## 本次验证（2026-10-17）
-
-| 项目 | 结果 |
-| --- | --- |
-| 生产构建 | 通过，Vite build |
-| 前端现有测试 | 25/25 通过，覆盖 API 会话、上传恢复、任务事件、分析工作区及时间戳 |
-| 桌面与手机界面 | 已检查导入、列表、搜索空态、登录/注册、任务设置、转写与结果面板；修复手机注册窗口溢出 |
-| 关键前端操作 | 已检查未登录导入拦截、必填校验、模式/目标预设、搜索与清除、Escape 关闭、示例结果切换、复制和文件导出 |
-| 完整后端链路 | 未验收：本机 `9090/health` 不可用，未配置运行所需的中间件与模型服务 |
-| 真实媒体与 AI | 未验收：上传/断点续传联调、真实 ASR/OCR、视频播放跳转、证据检索、SSE 和真实 AI 生成均不由演示截图证明 |
-
-现有依赖审计另报告 **4 项 high 告警**，涉及 Vue 及其依赖；本次未升级依赖、未改锁文件。详情、复现命令与截图清单见 [界面验收记录](docs/ui-redesign-validation.md)。
-
-## 原有核心能力
-
-以下能力继承自原项目，按代码与原 README 的分类整理；本次完成的是前端视觉与交互展示检查，不等同于以下后端链路已在本机验收。
-
-长视频处理是**长耗时、高资源消耗、外部调用成本敏感**的场景。DoVideo-AI 的设计都围绕这一背景展开，可以概括为四层能力。
-
-### 🎬 可靠的视频任务链路
-
-> 把大文件上传与耗时的视频解析从请求主链路中剥离，通过异步任务、幂等控制和重试机制管理长耗时处理。
-
-- **分片上传 + 断点续传** — 前端按 5 MB 分片，Redis 记录已完成分片，MinIO 保存合并后的视频，弱网中断后可从断点续传。
-- **异步削峰** — RocketMQ 将视频解析移出请求线程，提交后立即返回任务 ID；Redisson 按「内容指纹 + 分析目标」加锁，拦截并发与重复消费。
-- **成本护栏** — 用户级与全局令牌桶限制 AI 请求速率；ASR 与模型调用采用有限次数的指数退避重试，兜底第三方网络抖动。
-
-### 🧩 时序多模态 VideoContext
-
-> 把语音、画面文字与时间戳融合成一份可检索、可校验的统一上下文。
-
-- **双分支抽取** — FFmpeg 将音频按 60 秒切片，同时通过场景变化检测抽取关键帧，并以 30 秒保底采样避免遗漏静态板书。
-- **并行与容错** — ASR 与 OCR 使用独立有界线程池并行执行；相邻画面通过感知哈希去重，单路失败时仍保留另一条有效信息。
-- **统一结构** — 语音区间、OCR 文本、关键帧与时间戳被合并为统一的 `VideoSegment`，后续检索与校验不再依赖底层模型格式。
+一段几十分钟的视频，真正需要回看或保留的内容可能只有几分钟。DoVideo-AI 把视频转成带时间的文字稿：既能围绕内容总结、学习，也能点击文字回看画面、删除整段，或描述目标让 AI 推荐片段，预览后导出 MP4。
 
 ```text
-[02:00 - 03:00]
-ASR      接下来讲解二叉树的前序遍历
-OCR      前序遍历：根节点、左子树、右子树
-Evidence frame_000125.jpg
+上传视频 → 自动生成时间轴文字
+                ├─ 总结理解 → 结论 + 时间戳证据
+                └─ 手动选段 / AI 推荐 → 预览微调 → 导出视频
 ```
 
-### 🔁 有证据约束的 AgentLoop
+## 三个核心设计
 
-> 每条结论都必须绑定可在原始视频中核验的时间戳证据，通过证据约束与程序校验降低无依据结论的风险。
+### 1. 一份时间轴，同时连接理解与剪辑
 
-- **角色分工** — Planner 将用户目标拆成可执行任务，Executor 生成固定结构的结论、证据与建议。
-- **闭环校验** — Critic 检查目标覆盖、结构完整性与时间戳证据；不通过时依据缺失内容和时间范围定向重新检索。
-- **自动模式路由** — 根据用户目标自动选择通用、学习、审查或创作模式；路由不可用时回退通用模式，不阻断分析任务。
-- **四类结构化产物** — 通用模式生成结论与建议，学习模式生成大纲、自测题与易错点，审查模式定位逻辑漏洞与存疑结论，创作模式提取爆点、标题与口播脚本。
-- **成本可控** — AgentLoop 最多执行两轮，既允许定向修正，也通过轮次上限约束延迟与 Token 成本。
+纯文本能总结，却不能直接剪视频。系统保留每个句段的 **ID、原文、起止时间**：拼接全文供 AI 理解，点击句段定位画面，删除句段则排除对应音视频区间。总结与剪辑复用同一份转写结果，避免重复识别与两份文字不一致。
 
-### 🔍 长视频检索与断点恢复
+剪辑方案引用固定字幕版本；原视频保留完整，导出使用保存后的方案快照。
 
-> 面向数小时长视频的分段检索，以及分阶段可恢复的任务状态机。
+### 2. AI 负责选择，后端负责确定真实剪辑点
 
-- **混合检索** — 每 5 分钟生成片段摘要、关键词与 Embedding，通过关键词匹配与 Qdrant 语义召回选出 TopK 原始证据。
-- **优雅降级** — Qdrant 或 Embedding 服务不可用时，退化到本地关键词与已有向量排序，不阻断主分析链路。
-- **断点恢复** — Checkpoint 以 MySQL 为恢复真源、Redis 为热缓存，持久化 `VideoContext`、分块、计划、Critic 状态与最终结果。
-- **状态可观测** — 前端通过 SSE 接收任务阶段；失败消息写入独立失败主题与失败任务表，可由管理接口重新投递。
+用户输入“保留知识讲解，删除重录与操作说明”，模型返回 **句段编号和选择理由**。后端检查编号是否属于当前字幕，去重、恢复原顺序，再映射真实时间；不让模型猜时间，也不让推荐静默覆盖用户的手动修改。
 
-## 系统流程
+长文字按句数和长度分批，保留重叠上下文；任务具有批次、时间和重试上限。推荐完成后，用户可回看、应用和微调，最终复用已有导出链路。
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 用户
-    participant Web as Vue 工作台
-    participant API as Spring Boot API
-    participant MQ as RocketMQ
-    participant Worker as 分析消费者
-    participant Context as VideoContext
-    participant Search as Qdrant 检索
-    participant Agent as AgentLoop
-    participant State as MySQL + Redis
+### 3. 把长耗时处理做成可恢复的任务
 
-    User->>Web: 上传视频并填写分析目标
-    Web->>API: 分片上传与合并
-    API->>MQ: 投递视频分析任务
-    API-->>Web: 返回 202 Accepted
-    MQ->>Worker: 异步消费
-    Worker->>State: 查询幂等结果与 Checkpoint
+- **可靠上传：** 5 MB 分片、Redis 状态记录和断点续传，MinIO 存储视频。
+- **异步与隔离：** RocketMQ 调度视频分析；转写、选段与导出采用独立有界执行器，持久化任务状态，页面关闭后可以恢复查看。
+- **一致性与成本：** Redisson 锁、结果复用、限流与有限重试；新时间轴替换旧上下文时同步失效派生缓存，避免继续引用旧分析证据。
+- **有证据的理解：** Planner–Executor–Critic 生成并校验结构化结果，结合时间戳证据与阶段 Checkpoint；语义检索不可用时支持本地降级。
 
-    alt 已存在可恢复结果
-        State-->>Worker: 返回最近成功阶段
-    else 首次解析
-        par 语音分支
-            Worker->>Context: FFmpeg 分段 + ASR
-        and 视觉分支
-            Worker->>Context: 关键帧抽取 + OCR
-        end
-        Context->>State: 保存时序多模态上下文
-    end
+[查看技术架构](docs/architecture.md)
 
-    Worker->>Search: 摘要、关键词与 Embedding 混合检索
-    Search-->>Agent: 返回相关原始证据
-    loop Critic 未通过且未达到两轮
-        Agent->>Agent: Planner -> Executor -> Critic
-        Agent->>Search: 按反馈定向补充证据
-    end
-    Agent->>State: 保存结构化结果与 Checkpoint
-    Worker-->>Web: SSE 推送阶段与最终结果
-    Web-->>User: 展示结论、证据与后续追问
-```
+## 实际效果
 
-## 技术栈
+以下为本地真实运行截图。素材是 **37.32 秒自制合成课程视频**，百炼实际识别出 8 个句段；推荐来自真实模型调用。
 
-| 层次 | 技术 | 用途 |
-| :--- | :--- | :--- |
-| Web | Vue 3、Vite、SSE、Marked | 上传、Agent 工作台、实时进度与安全 Markdown 展示 |
-| API | Java 21、Spring Boot 3.5.9、Undertow、MyBatis-Plus | 鉴权、媒体管理、任务编排与 REST API |
-| 异步与缓存 | RocketMQ 5.3.4、Redis 7.4、Redisson | 异步削峰、状态缓存、限流、锁与消费幂等 |
-| 数据与存储 | MySQL 8、MinIO、Qdrant | 业务数据、视频对象、Checkpoint 与向量检索 |
-| 视频与 AI | FFmpeg、Tesseract、LangChain4j、DeepSeek、TeleSpeechASR、BGE-M3 | 音视频处理、多模态解析、Agent 推理与 Embedding |
-| 部署 | Docker Compose | 本地中间件编排 |
+### 描述目标，获得推荐与理由
 
-## 完整系统运行
+输入“保留二分查找的主题介绍、前提和基本步骤”，AI 选出 3 句知识讲解，排除重录提示和剪辑操作说明。用户可以逐段回看，再决定是否应用。
 
-### 环境要求
+![AI 智能选段：目标、推荐与理由](docs/images/ai-smart-selection.jpg)
 
-| 组件 | 要求 | 说明 |
-| :--- | :--- | :--- |
-| JDK | 21 | 后端运行环境 |
-| Node.js | 22 | Vue 与 Vite 构建环境 |
-| Docker | Compose v2 | 启动 MySQL、Redis、MinIO、Qdrant 与 RocketMQ |
-| FFmpeg | 可在终端调用 | 音频切分与关键帧抽取 |
-| Tesseract | 安装 `chi_sim` 与 `eng` | 中英文关键帧 OCR |
-| yt-dlp | 可选 | 仅解析在线视频链接时需要 |
+### 按文字回看、删段，核对对应画面
 
-建议先确认命令均可用：
+点击文字定位原视频，获取该时刻的实际画面；取消保留整句段，预览时跳过对应内容。也支持手动导入 SRT/VTT。
 
-```bash
-java -version
-node --version
-docker compose version
-ffmpeg -version
-tesseract --version
-```
+![时间轴文字、句段删除与对应画面](docs/images/bailian-export.jpg)
 
-### 1. 准备配置
+### 确认方案，生成独立 MP4
 
-```bash
-cp .env.example .env
-```
+推荐的 3 句总计 14.12 秒，实际导出 **14.16 秒、H.264/AAC、1280×720** 的 MP4，已下载并播放至结尾。保存后重开可继续编辑。
 
-编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码；使用原模型功能时另设 `SILICONFLOW_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。磁盘空间不足时，可设置 `MINIO_DATA_DIR` 和 `EDITOR_TASK_ROOT`，分别存放视频对象与编辑临时文件；不要通过降低存储保护阈值绕过空间问题。
+![方案保存与真实视频导出](docs/images/ai-smart-selection-export.jpg)
 
-`.env.example` 默认 LLM 为 `deepseek-ai/DeepSeek-V3.2`，实际可用性以服务商当前支持为准。`LLM_TIMEOUT_SECONDS` 默认是 `300`，用于避免长视频证据分析在模型响应尚未返回时过早超时；模型或超时配置变更后需要重启后端。
+<details>
+<summary>查看 AI 总结与理解</summary>
 
-### 2. 启动中间件
+同一份文字稿也可生成总结与时间戳证据。该次真实模型分析仍有部分结论未通过 Critic，页面保留人工核验提示。
 
-```bash
-./scripts/dev-up.sh
-```
+![真实 AI 总结与校验提示](docs/images/real-ai-summary.jpg)
 
-脚本会检查本机命令与版本、校验 Compose 配置，并等待 MySQL、Redis、MinIO、Qdrant 和 RocketMQ 启动。中间件与后端默认只监听 `127.0.0.1`，不会直接暴露到局域网；远程部署时再显式修改 `SERVER_ADDRESS` 并配置反向代理。
+</details>
 
-Windows 可在项目根目录运行 `powershell -File scripts/dev-up.ps1`。该脚本只启动中间件，模型 Key、Java 和 OCR 在启动后端及验证相应功能时另行检查。如果本机已有 Redis 占用 6379，可将 `.env` 的 `REDIS_PORT` 改为其他空闲端口，例如 6380；后端与 Compose 会读取同一配置。
+## 技术栈与源码入口
 
-MinIO [社区版已改为源码分发](https://github.com/minio/minio#source-only-distribution)，历史镜像在部分环境下无法拉取。可运行 `powershell -File scripts/dev-up.ps1 -SourceMinio`，从原配置相同的固定官方源码版本构建本地镜像，首轮需要下载 Go 构建环境与依赖。构建配置位于 `docker/minio/Dockerfile` 和 `docker-compose.source-minio.yml`；不需要本机另装 Go。当前本地环境及功能验证进度见 [实施记录](docs/text-video-editor-validation.md)。
+| 模块 | 技术 | 主要位置 |
+| --- | --- | --- |
+| 工作台与文本编辑器 | Vue 3、Vite | `client/src/components/TextVideoEditor.vue`、`useTextVideoEditor.js` |
+| 时间轴、选段与导出 | Java 21、Spring Boot、FFmpeg | `server/.../editor/` |
+| 内容理解与检索 | LangChain4j、Planner–Executor–Critic、Qdrant | `server/.../service/` |
+| 状态与持久化 | MySQL、MyBatis-Plus、Redis、Redisson | Mapper、Checkpoint 与任务表 |
+| 分析调度与对象存储 | RocketMQ、MinIO | 消费者、存储工具与 Compose 配置 |
+| 语音与文本模型 | 百炼 Paraformer、硅基流动 | 独立配置语音转写和文本模型 |
 
-### 3. 启动后端
+## 快速运行
 
-```bash
-set -a
-source .env
-set +a
+需要 JDK 21、Node.js 22+、Docker Compose 和 FFmpeg。复制 `.env.example` 为 `.env`，配置服务密码；自动转写填写百炼 Key，总结和智能选段填写硅基流动 Key。
 
-cd server
-./mvnw spring-boot:run
-```
+```powershell
+# Windows，项目根目录：启动依赖
+powershell -File scripts/dev-up.ps1 -SourceMinio
 
-后端默认地址为 `http://localhost:9090`，启动时会初始化项目所需数据表。另开终端确认服务可用：
+# 新终端：启动后端
+powershell -File scripts/dev-server.ps1 -JavaHome "你的 JDK 21 安装目录"
 
-Windows 也可在仓库根目录运行 `powershell -File scripts/dev-server.ps1 -JavaHome "你的 JDK 21 安装目录"`，脚本仅为当前进程设置 Java 和 `.env`。未填写 `SILICONFLOW_API_KEY` 时，旧文本模型客户端使用本地不可用地址初始化，避免向真实服务发送占位凭据；AI Agent 生成仍需配置文本模型。时间轴可独立使用百炼：设置 `EDITOR_TIMED_ASR_PROVIDER=bailian` 和 `DASHSCOPE_API_KEY`，详见 [配置说明](docs/bailian-setup.md)。旧纯文本提取入口会优先复用自动句段；两种时间戳服务均未配置且无已完成结果时，可以导入字幕继续剪辑。
-
-```bash
-curl http://localhost:9090/health
-```
-
-成功时返回 `{"code":0,"message":"success","data":"UP"}`。
-
-### 4. 启动前端
-
-```bash
-set -a
-source .env
-set +a
-
+# 新终端：启动前端
 cd client
 npm ci
 npm run dev
 ```
 
-浏览器访问 `http://localhost:5173`。开发环境默认通过 Vite 代理访问后端；后端地址不同时修改 `VITE_DEV_PROXY_TARGET`，前后端分开部署时再设置 `VITE_API_BASE_URL`。
+访问 `http://localhost:5173`。只查看固定界面示例可打开 `/?demo`，该模式不调用模型。
 
-只查看前端 Agent 工作台时，可以打开 `http://localhost:5173/?demo`。Demo 模式使用内置示例数据，不依赖后端服务。
+[完整运行指南与排错](docs/running.md) · [百炼配置](docs/bailian-setup.md)
 
-### 常见问题
+## 验证与边界
 
-| 现象 | 处理方式 |
-| :--- | :--- |
-| 后端无法连接 MySQL 或 Redis | 运行 `docker compose --env-file .env ps`，确认服务健康且 `.env` 密码一致 |
-| 页面提示无法连接后端 | 先访问 `/health`；再检查 `VITE_DEV_PROXY_TARGET` 或 `VITE_API_BASE_URL` |
-| 视频解析提示命令不存在 | 确认 `ffmpeg`、`tesseract` 可在终端执行，必要时配置 `FFMPEG_DIR`、`OCR_COMMAND` |
-| AI 接口返回 401 或模型不可用 | 检查 `SILICONFLOW_API_KEY` 与模型名称，修改后重启后端 |
-| Maven 提示 `maven-default-http-blocker` | 在 `server` 目录执行 `./mvnw -s .mvn/central-settings.xml spring-boot:run`，临时绕过失效的用户级镜像 |
+最近一次完整验证：**后端 159 项测试、前端 76 项测试及构建通过**。短合成素材已走通真实转写、AI 推荐、人工确认、保存、导出与播放。
 
-停止本地中间件：
+当前按整句段、原顺序剪辑，会缩短句间停顿；选段仅根据文字，不能判断表情或动作。真人长对话与切点听感尚未验收；总结联调保留了 Critic 警告，OCR 分支未在本机验证。文件选择器受本机扩展权限限制，真实上传通过 HTTP 分片联调验证。
 
-```bash
-docker compose --env-file .env down
-```
+[详细验收记录](docs/ai-smart-selection-validation.md)
 
-该命令不会删除 `mysql/data`、`redis/data`、`minio/data`、`qdrant/data` 或 RocketMQ 命名卷。需要完全重置时请先备份，再使用 `docker compose --env-file .env down --volumes` 并手动清理这些数据目录。
-
-## 目录结构
+## 仓库结构
 
 ```text
-DoVideo-AI
-├── client/              # Vue 3 工作台
-├── server/              # Spring Boot API 与 Video Agent
-├── rocketmq/            # Broker 配置
-├── docker-compose.yml   # 中间件编排
-└── .env.example         # 本地配置模板
+DoVideo-AI/
+├── client/                 # Vue 工作台
+├── server/                 # API、分析、转写、剪辑与测试
+├── docker/                 # MinIO 构建与 RocketMQ 配置
+├── scripts/                # 本地启动脚本
+├── docs/                   # 架构、运行指南、验收与截图
+│   └── development/        # 设计、实施记录与历史笔记
+├── extension/              # 可选浏览器侧边栏
+├── docker-compose.yml      # 本地依赖编排
+└── .env.example            # 配置模板，不含真实密钥
 ```
 
-## License
+本地运行产生的数据库、缓存、对象存储数据及构建产物不纳入 Git。
 
-本项目基于 [MIT License](LICENSE) 开源。
+## 致谢与许可
+
+基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发，感谢其视频处理与 Video Agent 基础。扩展包括统一工作台、共享时间轴文字稿、文本剪辑与 AI 智能选段。使用 [MIT License](LICENSE)。

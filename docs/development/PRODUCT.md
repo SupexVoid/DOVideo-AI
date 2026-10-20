@@ -14,7 +14,7 @@ web
 
 - 现有 Vue 3、Vite、Marked 前端；没有独立路由，登录、转写、AI 分析使用弹层。
 - 保留原有 API、鉴权、上传、SSE、任务恢复、检索和分析流程；上轮视觉改版已完成。
-- 本轮按 docs/superpowers/specs/2026-10-19-text-video-editor-design.md 实施独立文本剪辑模块，新增必要后端接口；单视频、句段级选择、保持原顺序，不做多轨或字级剪辑。
+- 本轮按 docs/development/superpowers/specs/2026-10-19-text-video-editor-design.md 实施独立文本剪辑模块，新增必要后端接口；单视频、句段级选择、保持原顺序，不做多轨或字级剪辑。
 - 优先沿用现有依赖，不自动提交、推送或部署。
 - `?demo` 是项目自带的固定示例，不代表本次真实视频处理或模型调用。
 - 本地后端、真实视频处理与模型结果需单独验证，见 docs/text-video-editor-validation.md；未验收项不描述为已完成。

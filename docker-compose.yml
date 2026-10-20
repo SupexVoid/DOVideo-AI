@@ -74,7 +74,7 @@ services:
       BROKER_ROLE: ASYNC_MASTER
       JAVA_OPT_EXT: -server -Xms256m -Xmx256m -Xmn128m
     volumes:
-      - ./rocketmq/broker.conf:/home/rocketmq/broker.conf:ro
+      - ./docker/rocketmq/broker.conf:/home/rocketmq/broker.conf:ro
       - rocketmq-store:/home/rocketmq/store
       - rocketmq-logs:/home/rocketmq/logs
     command: sh mqbroker -n rmqnamesrv:9876 -c /home/rocketmq/broker.conf
