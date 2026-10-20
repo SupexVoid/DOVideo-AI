@@ -225,4 +225,4 @@ DoVideo-AI/
 
 ## 致谢与许可
 
-基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发，感谢其视频处理与 Video Agent 基础。扩展包括统一工作台、共享时间轴文字稿、文本剪辑与 AI 智能选段。使用 [MIT License](LICENSE)。
+使用 [MIT License](LICENSE)。
