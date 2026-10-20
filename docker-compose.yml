@@ -22,7 +22,7 @@ services:
   redis:
     image: redis:7.4-alpine
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
@@ -53,7 +53,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
     command: server /data --console-address ":9001"
     volumes:
-      - ./minio/data:/data
+      - ${MINIO_DATA_DIR:-./minio/data}:/data
 
   rmqnamesrv:
     image: apache/rocketmq:5.3.4

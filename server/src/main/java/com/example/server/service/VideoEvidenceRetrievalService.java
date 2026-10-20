@@ -79,14 +79,21 @@ public class VideoEvidenceRetrievalService {
                 .toList();
     }
 
-    public void index(Long mediaId, List<VideoChunk> chunks) {
+    public boolean index(Long mediaId, List<VideoChunk> chunks) {
         try {
             vectorStore.upsert(mediaId, chunks);
             telemetry.incrementCurrent("vectorStoreWrites", chunks.size());
+            // An empty embedding batch is a no-op in the vector store, not a rebuilt index.
+            return chunks.stream().anyMatch(chunk -> !chunk.embedding().isEmpty());
         } catch (RuntimeException e) {
             // 向量库挂了仍可走内存向量和关键词，别让检索基础设施拖垮分析主链路。
             telemetry.incrementCurrent("vectorStoreFallbacks", 1);
+            return false;
         }
+    }
+
+    public void invalidate(Long mediaId) {
+        vectorStore.deleteMedia(mediaId);
     }
 
     private double score(VideoRetrievalIntent intent,

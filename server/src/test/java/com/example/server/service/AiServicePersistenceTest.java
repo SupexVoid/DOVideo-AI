@@ -31,7 +31,7 @@ class AiServicePersistenceTest {
         AiService service = new AiService(mapper, mock(VideoContextService.class),
                 mock(LongVideoContextService.class), mock(AgentLoopService.class), checkpoints, mock(AgentTelemetry.class),
                 mock(MediaService.class), mock(TaskEventService.class), mock(RedissonClient.class),
-                mock(StringRedisTemplate.class), mock(ModeRegistry.class), mock(DeepSeekUtils.class), new ObjectMapper());
+                mock(StringRedisTemplate.class), mock(ModeRegistry.class), mock(DeepSeekUtils.class), new ObjectMapper(), mock(UnifiedTranscriptService.class));
         AgentState result = new AgentState("goal", null,
                 new AnalysisResult("summary", List.of("done"), List.of(), List.of(), List.of()), null, 1);
 
@@ -64,7 +64,7 @@ class AiServicePersistenceTest {
         AiService service = new AiService(mapper, mock(VideoContextService.class),
                 mock(LongVideoContextService.class), loop, checkpoints, mock(AgentTelemetry.class),
                 mock(MediaService.class), mock(TaskEventService.class), mock(RedissonClient.class),
-                mock(StringRedisTemplate.class), mock(ModeRegistry.class), mock(DeepSeekUtils.class), new ObjectMapper());
+                mock(StringRedisTemplate.class), mock(ModeRegistry.class), mock(DeepSeekUtils.class), new ObjectMapper(), mock(UnifiedTranscriptService.class));
 
         service.asyncAnalyze(7L, "goal", AnalysisMode.GENERAL);
 

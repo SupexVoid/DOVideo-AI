@@ -14,6 +14,17 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class TranscriptionTaskServiceTest {
+    @Test void unifiedTranscriptSuppliesOriginalTextWithoutLegacyProviderCalls() {
+        MediaFileMapper mapper=mock(MediaFileMapper.class);MediaFile file=new MediaFile();file.setId(7L);file.setUserId(3L);
+        when(mapper.selectById(7L)).thenReturn(file);when(mapper.updateById(any(MediaFile.class))).thenReturn(1);
+        var old=mock(VideoTranscriptionService.class);var unified=mock(UnifiedTranscriptService.class);
+        when(unified.supports(7L,3L)).thenReturn(true);
+        when(unified.await(7L,3L)).thenReturn(java.util.List.of(new com.example.server.dto.TranscriptSegment(120,2340,"actual first"),new com.example.server.dto.TranscriptSegment(3100,4300,"actual second")));
+        var redis=mock(StringRedisTemplate.class);when(redis.opsForValue()).thenReturn(mock(ValueOperations.class));var events=mock(TaskEventService.class);
+        new TranscriptionTaskService(mapper,old,mock(MediaService.class),redis,events,unified).transcribe(7L);
+        verify(events).publishTranscription(7L,TaskStatus.completed("actual first\nactual second"),TaskStage.COMPLETED);
+        verifyNoInteractions(old);
+    }
     @Test
     void savedTranscriptRemainsReadableWhenRuntimeStateIsUnavailable() {
         StringRedisTemplate redis = mock(StringRedisTemplate.class);
@@ -22,7 +33,7 @@ class TranscriptionTaskServiceTest {
         when(values.get("transcription:state:7")).thenThrow(new IllegalStateException("Redis unavailable"));
         MediaFile media = new MediaFile(); media.setId(7L); media.setTranscriptText("saved transcript");
         TranscriptionTaskService service = new TranscriptionTaskService(mock(MediaFileMapper.class),
-                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, mock(TaskEventService.class));
+                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, mock(TaskEventService.class), mock(UnifiedTranscriptService.class));
 
         assertEquals(TaskStatus.completed("saved transcript"), service.status(media));
         media.setTranscriptText(null);
@@ -38,7 +49,7 @@ class TranscriptionTaskServiceTest {
         when(redis.hasKey("transcription:active:7")).thenReturn(true);
         MediaFile media = new MediaFile(); media.setId(7L); media.setTranscriptText("previous transcript");
         TranscriptionTaskService service = new TranscriptionTaskService(mock(MediaFileMapper.class),
-                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, mock(TaskEventService.class));
+                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, mock(TaskEventService.class), mock(UnifiedTranscriptService.class));
         assertEquals(TaskStatus.State.PROCESSING, service.status(media).state());
         when(values.get("transcription:state:7")).thenReturn("COMPLETED");
         assertEquals(TaskStatus.State.COMPLETED, service.status(media).state());
@@ -67,7 +78,7 @@ class TranscriptionTaskServiceTest {
         when(transcriber.transcribe("readable")).thenReturn("new transcript");
         when(mapper.updateById(any(MediaFile.class))).thenReturn(1);
 
-        new TranscriptionTaskService(mapper, transcriber, media, redis, events).transcribe(7L);
+        new TranscriptionTaskService(mapper, transcriber, media, redis, events, mock(UnifiedTranscriptService.class)).transcribe(7L);
 
         ArgumentCaptor<MediaFile> update = ArgumentCaptor.forClass(MediaFile.class);
         verify(mapper).updateById(update.capture());
@@ -87,7 +98,7 @@ class TranscriptionTaskServiceTest {
         when(redis.opsForValue()).thenReturn(mock(ValueOperations.class));
         TaskEventService events = mock(TaskEventService.class);
         TranscriptionTaskService service = new TranscriptionTaskService(mapper,
-                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, events);
+                mock(VideoTranscriptionService.class), mock(MediaService.class), redis, events, mock(UnifiedTranscriptService.class));
 
         assertDoesNotThrow(() -> service.transcribe(7L));
         verify(redis).delete("transcription:active:7");

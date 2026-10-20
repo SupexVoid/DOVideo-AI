@@ -14,6 +14,17 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AnalysisControllerTest {
+    @Test void staleCoarseCheckpointIsAcceptedForRebuildAndMatchingCheckpointReturnsImmediately() {
+        var ai=mock(AiService.class);var dispatch=mock(AnalysisDispatchService.class);var media=mock(MediaService.class);var checkpoints=mock(AgentCheckpointService.class);
+        var owned=new MediaFile();when(media.requireOwnedMedia(7L,3L)).thenReturn(owned);
+        when(checkpoints.loadResult(7L,"goal",AnalysisMode.GENERAL)).thenReturn(new com.example.server.dto.AgentState("goal",null,new com.example.server.dto.AnalysisResult("summary",List.of(),List.of(),List.of(),List.of()),null,1));
+        when(dispatch.submit(owned,"goal",null,AnalysisMode.GENERAL)).thenReturn(AnalysisDispatchService.SubmissionResult.ACCEPTED);
+        var controller=new AnalysisController(ai,dispatch,checkpoints,mock(AgentEvaluationService.class),mock(AgentTelemetry.class),media,mock(TaskEventService.class),mock(AnalysisStatusService.class),mock(ModeRouter.class),Runnable::run);
+        assertEquals(202,controller.aiAnalyze(7L,"goal",null,3L).getStatusCode().value());
+        verify(dispatch).submit(owned,"goal",null,AnalysisMode.GENERAL);clearInvocations(dispatch);
+        when(ai.canReuseSavedResult(7L,3L)).thenReturn(true);
+        assertEquals(200,controller.aiAnalyze(7L,"goal",null,3L).getStatusCode().value());verifyNoInteractions(dispatch);
+    }
     @Test
     void revisionUsesBodyModeWhenQueryIsMissingAndAllowsExplicitQueryOverride() {
         AiService ai = mock(AiService.class);

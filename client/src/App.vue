@@ -200,6 +200,15 @@
             <div class="action-dock">
               <button
                   class="dock-item"
+                  :disabled="DEMO_MODE"
+                  :title="DEMO_MODE ? '界面演示未连接真实视频，上传视频后可使用文本剪辑' : '按时间轴文字回看、选段与导出原视频'"
+                  @click="editorMedia = item"
+              >
+                <span class="item-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h4"/></svg></span>
+                <span class="item-label">文本剪辑</span>
+              </button>
+              <button
+                  class="dock-item"
                   :disabled="item.status !== 'COMPLETED'"
                   :title="actionTitle(item, '下载音频')"
                   @click="downloadAudio(item)"
@@ -519,6 +528,7 @@
           </form>
         </div>
       </div>
+      <TextVideoEditor v-if="editorMedia" :media-id="editorMedia.id" :filename="editorMedia.filename" :auto-transcribe="editorMedia.autoTranscribe === true" @close="editorMedia = null" @analyze="analyzeEditorMedia" />
     </main>
   </div>
 </template>
@@ -537,6 +547,7 @@ import {
 import { DEMO_ITEM } from './demoData'
 import { createTaskStreams } from './taskEvents'
 import { useAnalysisWorkspace } from './useAnalysisWorkspace'
+import TextVideoEditor from './components/TextVideoEditor.vue'
 
 // --- 变量定义 ---
 const DEMO_MODE = new URLSearchParams(window.location.search).has('demo')
@@ -558,6 +569,7 @@ let uploadRequestVersion = 0
 let authRequestVersion = 0
 const searchQuery = ref('')
 const videoPlayer = ref(null)
+const editorMedia = ref(null)
 const sidebarPanel = ref(null)
 const sidebarBody = ref(null)
 const authPanel = ref(null)
@@ -783,7 +795,7 @@ const uploadFile = async () => {
     showMsg(`✅ ${target.name} 上传完成`)
     await fetchList({ notify: true })
     if (!isCurrentUpload()) return
-    openAgent(uploadedMedia)
+    editorMedia.value = { ...uploadedMedia, autoTranscribe: true }
   } catch (error) {
     if (!isCurrentUpload()) return
     rememberResumableUpload(target)
@@ -887,7 +899,7 @@ const handleUrlUpload = async () => {
     videoUrl.value = ''
     await fetchList({ notify: true })
     if (!isCurrentUpload()) return
-    openAgent(uploadedMedia)
+    editorMedia.value = { ...uploadedMedia, autoTranscribe: true }
   } catch (error) {
     console.error(error)
     if (!isCurrentUpload()) return
@@ -994,6 +1006,13 @@ const {
   findMediaItem: id => list.value.find(item => item.id === id),
   onAnswerAppended: () => scrollToLatestAnswer()
 })
+
+const analyzeEditorMedia = mediaId => {
+  const media = editorMedia.value
+  if (!media || String(media.id) !== String(mediaId)) return
+  editorMedia.value = null
+  openAgent(media)
+}
 
 /** 追问的答案追加在长文末尾，主动滚过去，否则用户会以为“点了没反应”。 */
 const scrollToLatestAnswer = async () => {
@@ -1288,6 +1307,7 @@ const handleAuth = async () => {
 }
 /** 退出与登录失效走同一套清理，避免两处漏掉不同的字段。 */
 const resetSessionState = () => {
+  editorMedia.value = null
   uploadRequestVersion += 1
   listRequestVersion += 1
   authRequestVersion += 1
@@ -1344,7 +1364,7 @@ const handleBeforeUnload = event => {
 }
 
 // 打开弹层时挂上标记类，锁背景滚动的规则只在窄屏生效（见样式里的说明）。
-const overlayOpen = computed(() => sidebar.value.visible || showAuthModal.value)
+const overlayOpen = computed(() => sidebar.value.visible || showAuthModal.value || Boolean(editorMedia.value))
 watch(overlayOpen, open => {
   document.body.classList.toggle('overlay-open', open)
 })

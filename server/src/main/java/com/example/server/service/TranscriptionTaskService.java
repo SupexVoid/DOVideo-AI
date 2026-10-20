@@ -23,17 +23,19 @@ public class TranscriptionTaskService {
     private final MediaService mediaService;
     private final StringRedisTemplate redisTemplate;
     private final TaskEventService taskEventService;
+    private final UnifiedTranscriptService unified;
 
     public TranscriptionTaskService(MediaFileMapper mediaFileMapper,
                                     VideoTranscriptionService videoTranscriptionService,
                                     MediaService mediaService,
                                     StringRedisTemplate redisTemplate,
-                                    TaskEventService taskEventService) {
+                                    TaskEventService taskEventService, UnifiedTranscriptService unified) {
         this.mediaFileMapper = mediaFileMapper;
         this.videoTranscriptionService = videoTranscriptionService;
         this.mediaService = mediaService;
         this.redisTemplate = redisTemplate;
         this.taskEventService = taskEventService;
+        this.unified = unified;
     }
 
     public boolean queue(Long mediaId) {
@@ -53,8 +55,9 @@ public class TranscriptionTaskService {
             setState(mediaId, TaskStatus.State.PROCESSING, ACTIVE_TTL);
             taskEventService.publishTranscription(mediaId,
                     TaskStatus.of(TaskStatus.State.PROCESSING, "正在识别视频语音"), TaskStage.ASR);
-            String transcript = videoTranscriptionService.transcribe(
-                    mediaService.readableSource(mediaFile.getFilePath()));
+            String transcript = unified.supports(mediaId,mediaFile.getUserId())
+                    ? unified.await(mediaId,mediaFile.getUserId()).stream().map(com.example.server.dto.TranscriptSegment::text).collect(java.util.stream.Collectors.joining("\n"))
+                    : videoTranscriptionService.transcribe(mediaService.readableSource(mediaFile.getFilePath()));
             MediaFile update = new MediaFile();
             update.setId(mediaId);
             update.setTranscriptText(transcript);

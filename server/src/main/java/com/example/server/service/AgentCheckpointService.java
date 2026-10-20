@@ -13,6 +13,7 @@ import com.example.server.utils.AnalysisTaskKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -112,6 +113,27 @@ public class AgentCheckpointService {
         VideoContext reusableContext = new VideoContext(context.source(), "", context.segments());
         checkpointRepository.write(mediaId, mediaCheckpoint("context"), mediaCheckpoint("stage"),
                 checkpointKey(mediaId), "context", TaskStage.CONTEXT_COMPLETED, reusableContext);
+    }
+
+    /** Discard only generated evidence derivatives before replacing a legacy context.
+     * Caller holds the owned media context lock. Revision requests and feedback are user input.
+     * Cache eviction fails closed so a retry still sees the old context and repeats migration.
+     */
+    @Transactional
+    public void invalidateDerivedContext(Long mediaId) {
+        String prefix=checkpointKey(mediaId)+":goal:";
+        List<String> keys=new ArrayList<>();
+        try(var cursor=redisTemplate.scan(ScanOptions.scanOptions().match(prefix+"*").count(100).build())) {
+            while(cursor.hasNext()) {
+                String key=cursor.next();
+                if(key.startsWith(prefix)&&!key.endsWith(":revision"))keys.add(key);
+            }
+        }
+        if(!keys.isEmpty())redisTemplate.delete(keys);
+        redisTemplate.opsForHash().delete(checkpointKey(mediaId),"chunks","stage");
+        checkpointRepository.deleteByPrefix(mediaId,"goal:");
+        checkpointRepository.deleteByPrefix(mediaId,mediaCheckpoint("chunks"));
+        checkpointRepository.deleteByPrefix(mediaId,mediaCheckpoint("stage"));
     }
 
     public void saveChunks(Long mediaId, List<VideoChunk> chunks) {

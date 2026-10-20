@@ -68,6 +68,14 @@ public class VideoContextService {
     }
 
     public VideoContext build(String videoPath, String userGoal, String traceId) {
+        return buildInternal(videoPath,userGoal,traceId,null);
+    }
+
+    public VideoContext build(String videoPath,String userGoal,String traceId,List<TranscriptSegment> suppliedCues) {
+        return buildInternal(videoPath,userGoal,traceId,List.copyOf(suppliedCues));
+    }
+
+    private VideoContext buildInternal(String videoPath,String userGoal,String traceId,List<TranscriptSegment> suppliedCues) {
         String readableVideoPath = minioUtils.readableSource(videoPath);
         Path workDir = Path.of(System.getProperty("java.io.tmpdir"), "video-context-" + UUID.randomUUID());
         List<String> uploadedEvidenceFrames = new CopyOnWriteArrayList<>();
@@ -76,7 +84,11 @@ public class VideoContextService {
         try {
             Files.createDirectories(workDir);
             // 两条分支各跑各的，单路挂掉还能带着另一半信息继续往下走。
-            Future<BranchResult<TranscriptSegment>> transcriptFuture = submitBranch(
+            Future<BranchResult<TranscriptSegment>> transcriptFuture;
+            if(suppliedCues!=null) {
+                branchesFinished.countDown();
+                transcriptFuture=CompletableFuture.completedFuture(BranchResult.success(suppliedCues));
+            } else transcriptFuture = submitBranch(
                     asrExecutor,
                     branchesFinished,
                     () -> transcriptionService.transcribe(
@@ -91,7 +103,7 @@ public class VideoContextService {
                 BranchResult<TranscriptSegment> transcriptResult = awaitBranch(transcriptFuture, deadline);
                 BranchResult<FramePart> frameResult = awaitBranch(frameFuture, deadline);
                 return finishContext(
-                        videoPath, userGoal, traceId, transcriptResult, frameResult, uploadedEvidenceFrames);
+                        videoPath, userGoal, traceId, transcriptResult, frameResult, uploadedEvidenceFrames,suppliedCues!=null);
             } catch (TimeoutException e) {
                 cleanupWorkDir = cancelBranches(branchesFinished, transcriptFuture, frameFuture);
                 throw new IllegalStateException("VideoContext 分支处理超过总时间预算", e);
@@ -141,7 +153,7 @@ public class VideoContextService {
                                        String traceId,
                                        BranchResult<TranscriptSegment> transcriptResult,
                                        BranchResult<FramePart> frameResult,
-                                       List<String> uploadedEvidenceFrames) {
+                                       List<String> uploadedEvidenceFrames,boolean exactCues) {
         if (transcriptResult.failed() && frameResult.failed()) {
             IllegalStateException failure = new IllegalStateException(
                     "ASR 和 OCR 分支均失败", transcriptResult.error());
@@ -158,9 +170,20 @@ public class VideoContextService {
             deleteEvidenceFrames(uploadedEvidenceFrames);
             uploadedEvidenceFrames.clear();
         }
-        List<VideoContext.VideoSegment> segments = merge(transcriptResult.items(), frameResult.items());
+        List<VideoContext.VideoSegment> segments = exactCues?mergeExact(transcriptResult.items(),frameResult.items()):merge(transcriptResult.items(), frameResult.items());
         if (segments.isEmpty()) throw new IllegalStateException("视频未解析出有效语音或画面文字");
         return new VideoContext(videoPath, userGoal, segments);
+    }
+    private List<VideoContext.VideoSegment> mergeExact(List<TranscriptSegment> cues,List<FramePart> frames) {
+        List<VideoContext.VideoSegment> result=new ArrayList<>();
+        List<FramePart> remaining=new ArrayList<>(frames);
+        for(TranscriptSegment cue:cues) {
+            List<FramePart> attached=remaining.stream().filter(f->f.timestampMs()>=cue.startMs()&&f.timestampMs()<cue.endMs()).toList();
+            remaining.removeAll(attached);
+            result.add(new VideoContext.VideoSegment(cue.startMs(),cue.endMs(),cue.text(),attached.stream().map(FramePart::ocrText).filter(t->t!=null&&!t.isBlank()).toList(),attached.stream().map(FramePart::frameName).toList()));
+        }
+        for(FramePart frame:remaining)result.add(new VideoContext.VideoSegment(frame.timestampMs(),frame.timestampMs()+1,"",frame.ocrText()==null||frame.ocrText().isBlank()?List.of():List.of(frame.ocrText()),List.of(frame.frameName())));
+        result.sort(Comparator.comparingLong(VideoContext.VideoSegment::startMs));return result;
     }
 
     private <T> Future<BranchResult<T>> submitBranch(

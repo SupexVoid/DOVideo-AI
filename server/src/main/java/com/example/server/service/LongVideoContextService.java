@@ -37,22 +37,26 @@ public class LongVideoContextService {
         return selectRelevant(null, context);
     }
 
+    public void invalidateDerivedContext(Long mediaId) {
+        retrievalService.invalidate(mediaId);
+    }
+
     public VideoContext selectRelevant(Long mediaId, VideoContext context) {
         if (context.segments().isEmpty()
                 || context.segments().get(context.segments().size() - 1).endMs() <= CHUNK_MS) {
             return withinBudget(context, context.segments());
         }
 
-        List<VideoChunk> chunks = resolveChunks(mediaId, context.segments());
+        ResolvedChunks chunks = resolveChunks(mediaId, context.segments());
         List<VideoContext.VideoSegment> selectedSegments =
-                retrievalService.retrieve(mediaId, context.userGoal(), chunks);
+                retrievalService.retrieve(chunks.indexReady() ? mediaId : null, context.userGoal(), chunks.chunks());
         return withinBudget(context, selectedSegments);
     }
 
     public List<VideoEvidenceHit> searchEvidence(Long mediaId, VideoContext context) {
         if (context.segments().isEmpty()) return List.of();
-        List<VideoChunk> chunks = resolveChunks(mediaId, context.segments());
-        return retrievalService.search(mediaId, context.userGoal(), chunks);
+        ResolvedChunks chunks = resolveChunks(mediaId, context.segments());
+        return retrievalService.search(chunks.indexReady() ? mediaId : null, context.userGoal(), chunks.chunks());
     }
 
     public VideoContext refineForCritique(Long mediaId,
@@ -110,20 +114,23 @@ public class LongVideoContextService {
                 && timestamp < segment.endMs() + margin;
     }
 
-    private List<VideoChunk> resolveChunks(Long mediaId,
+    private record ResolvedChunks(List<VideoChunk> chunks, boolean indexReady) { }
+
+    private ResolvedChunks resolveChunks(Long mediaId,
                                            List<VideoContext.VideoSegment> segments) {
         List<VideoChunk> chunks = mediaId == null ? null : checkpointService.loadChunks(mediaId);
         if (chunks != null && !chunks.isEmpty()) {
             telemetry.incrementCurrent("chunkCheckpointHits", 1);
-            return chunks;
+            return new ResolvedChunks(chunks, retrievalService.index(mediaId, chunks));
         }
 
         chunks = chunkingService.build(segments);
         if (mediaId != null) {
             checkpointService.saveChunks(mediaId, chunks);
-            retrievalService.index(mediaId, chunks);
+            // Failed writes must use the current local evidence for this retrieval.
+            return new ResolvedChunks(chunks, retrievalService.index(mediaId, chunks));
         }
-        return chunks;
+        return new ResolvedChunks(chunks, false);
     }
 
 }

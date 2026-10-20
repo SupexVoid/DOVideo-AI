@@ -7,6 +7,7 @@ import com.example.server.dto.AnalysisMode;
 import com.example.server.dto.TaskStatus;
 import com.example.server.dto.TaskStage;
 import com.example.server.dto.VideoContext;
+import com.example.server.dto.TranscriptSegment;
 import com.example.server.dto.VideoEvidenceHit;
 import com.example.server.entity.MediaFile;
 import com.example.server.mapper.MediaFileMapper;
@@ -60,6 +61,7 @@ public class AiService {
     private final ModeRegistry modeRegistry;
     private final DeepSeekUtils deepSeekUtils;
     private final ObjectMapper objectMapper;
+    private final UnifiedTranscriptService unified;
 
     public AiService(MediaFileMapper mediaFileMapper,
                      VideoContextService videoContextService,
@@ -73,7 +75,7 @@ public class AiService {
                      StringRedisTemplate redisTemplate,
                      ModeRegistry modeRegistry,
                      DeepSeekUtils deepSeekUtils,
-                     ObjectMapper objectMapper) {
+                     ObjectMapper objectMapper, UnifiedTranscriptService unified) {
         this.mediaFileMapper = mediaFileMapper;
         this.videoContextService = videoContextService;
         this.longVideoContextService = longVideoContextService;
@@ -87,6 +89,18 @@ public class AiService {
         this.modeRegistry = modeRegistry;
         this.deepSeekUtils = deepSeekUtils;
         this.objectMapper = objectMapper;
+        this.unified = unified;
+    }
+    /** HTTP cache probe: durable reads only; never starts or waits for remote ASR. */
+    public boolean canReuseSavedResult(Long mediaId,Long userId) {
+        if(!unified.supports(mediaId,userId))return true;
+        List<TranscriptSegment> cues=unified.completed(mediaId,userId);
+        return cues!=null&&matchesCues(checkpointService.loadContext(mediaId),cues);
+    }
+    private boolean matchesCues(VideoContext context,List<TranscriptSegment> cues) {
+        if(context==null)return false;
+        return context.segments().stream().filter(s->!s.transcript().isBlank())
+                .map(s->new TranscriptSegment(s.startMs(),s.endMs(),s.transcript())).toList().equals(cues);
     }
 
     /** 兼容旧调用方:未指定模式时按 GENERAL 分析。 */
@@ -107,16 +121,20 @@ public class AiService {
         }
 
         try {
+            List<TranscriptSegment> timedCues=unified.supports(mediaId,mediaFile.getUserId())
+                    ?unified.await(mediaId,mediaFile.getUserId()):null;
             // Checkpoint 键 = (mediaId, goalDigest(goal, mode)):不同模式的同一目标互不串键,
             // 因此这里带 mode 读取,不会误取别的模式已完成的结果。
             AgentState agentState = checkpointService.loadResult(mediaId, userGoal, resolvedMode);
-            if (agentState != null && agentState.result() != null) {
+            if (agentState != null && agentState.result() != null
+                    &&(timedCues==null||matchesCues(checkpointService.loadContext(mediaId),timedCues))) {
                 persistResult(mediaFile, agentState, null);
                 telemetry.increment(traceId, "checkpointHits", 1);
                 return;
             }
 
-            VideoContext videoContext = resolveContext(mediaFile, userGoal, traceId, resolvedMode);
+            VideoContext videoContext = timedCues==null?resolveContext(mediaFile, userGoal, traceId, resolvedMode)
+                    :resolveTimedContext(mediaFile,userGoal,traceId,resolvedMode,timedCues);
             currentStage = TaskStage.AGENT_LOOP;
             taskEventService.publishAnalysis(mediaId, userGoal, resolvedMode,
                     TaskStatus.of(TaskStatus.State.PROCESSING, "多模态上下文已就绪，Agent 开始分析"),
@@ -149,6 +167,21 @@ public class AiService {
             telemetry.flush(traceId);
             telemetry.clear();
         }
+    }
+    private VideoContext resolveTimedContext(MediaFile media,String goal,String traceId,AnalysisMode mode,List<TranscriptSegment> cues) {
+        VideoContext saved=checkpointService.loadContext(media.getId());
+        if(matchesCues(saved,cues))return new VideoContext(media.getFilePath(),goal,saved.segments());
+        // Content-wide checkpoints may carry old coarse ASR ranges. Rebuild OCR once rather
+        // than treating those ranges as service timestamps; keep reuse scoped to owned media.
+        RLock lock=redissonClient.getLock(AnalysisTaskKeys.contextLock("timed-"+media.getId()));boolean acquired=false;
+        try {
+            acquired=lock.tryLock(CONTEXT_LOCK_WAIT_SECONDS,TimeUnit.SECONDS);
+            saved=checkpointService.loadContext(media.getId());
+            if(matchesCues(saved,cues))return new VideoContext(media.getFilePath(),goal,saved.segments());
+            if(!acquired)throw new IllegalStateException("同一视频的上下文正在构建中，稍后重试");
+            return buildContext(media,goal,traceId,null,mode,cues);
+        }catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw new IllegalStateException("等待视频上下文被中断",interrupted);}
+        finally {if(acquired&&lock.isHeldByCurrentThread())lock.unlock();}
     }
 
     /**
@@ -235,12 +268,20 @@ public class AiService {
                                       String traceId,
                                       String contentHash,
                                       AnalysisMode mode) {
+        return buildContext(mediaFile,userGoal,traceId,contentHash,mode,null);
+    }
+    private VideoContext buildContext(MediaFile mediaFile,String userGoal,String traceId,String contentHash,AnalysisMode mode,List<TranscriptSegment> cues) {
         taskEventService.publishAnalysis(mediaFile.getId(), userGoal, mode,
                 TaskStatus.of(TaskStatus.State.PROCESSING, "正在并行提取语音与关键帧"),
                 TaskStage.VIDEO_CONTEXT);
         long started = System.nanoTime();
         try {
-            VideoContext context = videoContextService.build(mediaFile.getFilePath(), userGoal, traceId);
+            VideoContext context = cues==null?videoContextService.build(mediaFile.getFilePath(), userGoal, traceId)
+                    :videoContextService.build(mediaFile.getFilePath(),userGoal,traceId,cues);
+            if(cues!=null) {
+                checkpointService.invalidateDerivedContext(mediaFile.getId());
+                longVideoContextService.invalidateDerivedContext(mediaFile.getId());
+            }
             try {
                 checkpointService.saveContext(mediaFile.getId(), context);
             } catch (RuntimeException e) {
@@ -248,7 +289,7 @@ public class AiService {
                 throw e;
             }
             // 先落盘再登记归属：登记成功即意味着该上下文确实可被读取，避免别人拿到空索引。
-            rememberContextOwner(contentHash, mediaFile.getId());
+            if(cues==null)rememberContextOwner(contentHash, mediaFile.getId());
             telemetry.stage(traceId, TaskStage.VIDEO_CONTEXT.name(), started, true);
             return context;
         } catch (RuntimeException e) {
@@ -382,6 +423,12 @@ public class AiService {
     public boolean reuseResult(Long mediaId, Long sourceMediaId, AgentState state, AnalysisMode mode) {
         MediaFile mediaFile = mediaFileMapper.selectById(mediaId);
         if (mediaFile == null) throw new IllegalArgumentException("media does not exist: " + mediaId);
+
+        if(unified.supports(mediaId,mediaFile.getUserId())) {
+            if(!mediaId.equals(sourceMediaId))return false;
+            List<TranscriptSegment> cues=unified.await(mediaId,mediaFile.getUserId());
+            if(!matchesCues(checkpointService.loadContext(mediaId),cues))return false;
+        }
 
         VideoContext sourceContext = checkpointService.loadContext(sourceMediaId);
         if (sourceContext == null) return false;

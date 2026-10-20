@@ -1,0 +1,8 @@
+# Optional local fallback for unavailable upstream binary images:
+# docker compose -f docker-compose.yml -f docker-compose.source-minio.yml up -d --build
+services:
+  minio:
+    image: dovideo-minio-source:RELEASE.2025-09-07T16-13-09Z
+    pull_policy: never
+    build:
+      context: ./docker/minio

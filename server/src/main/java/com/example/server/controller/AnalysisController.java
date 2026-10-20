@@ -107,7 +107,8 @@ public class AnalysisController {
         String normalizedGoal = normalizeText(goal, "分析目标");
         AnalysisMode analysisMode = AnalysisMode.fromRequest(mode);
         MediaFile mediaFile = mediaService.requireOwnedMedia(id, userId);
-        if (checkpointService.loadResult(id, normalizedGoal, analysisMode) != null) {
+        if (checkpointService.loadResult(id, normalizedGoal, analysisMode) != null
+                && aiService.canReuseSavedResult(id,userId)) {
             // 已有可复用结果，是“已完成”而非“已受理”，用 200 与异步受理区分开。
             return ResponseEntity.ok(Result.ok());
         }

@@ -109,6 +109,12 @@ public class MinioUtils {
         }
     }
 
+    /** Copies only an object belonging to this configured store; caller owns and bounds the stream. */
+    public void copyManagedFileTo(String fileUrl, OutputStream outputStream) {
+        if (!isManagedFile(fileUrl)) throw new IllegalArgumentException("源视频不是受管理的存储对象");
+        copyObjectTo(objectName(fileUrl), outputStream);
+    }
+
     public void removeFile(String fileUrl) {
         if (fileUrl == null || fileUrl.isBlank()) return;
         if (!isManagedFile(fileUrl)) return;

@@ -2,7 +2,59 @@
 
 面向视频内容理解的工作台：导入视频、提取文字，围绕分析目标生成带时间戳证据的结构化内容。
 
-本仓库基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发。当前改动聚焦前端视觉统一与功能展示，沿用原有 Vue 3、接口、鉴权和任务流程。感谢原项目提供的视频处理链路、Video Agent 实现与测试基础；版权与许可见 [LICENSE](LICENSE)。
+本仓库基于 [Xiaoc7r/DOVideo-AI](https://github.com/Xiaoc7r/DOVideo-AI) 继续开发，在统一工作台界面的基础上新增文本驱动视频编辑，复用原有视频导入、鉴权与存储。感谢原项目提供的视频处理链路、Video Agent 实现与测试基础；版权与许可见 [LICENSE](LICENSE)。
+
+## 文本驱动视频编辑
+
+上传视频后进入文本剪辑，配置语音服务后自动生成带时间的句段；也可导入匹配的 SRT/VTT 字幕。按文字回看对应画面、删除或恢复整段、连续预览保留部分、保存方案并异步导出新的 MP4。原视频保持完整。
+
+下面是 2026-10-19 本地真实运行的编辑器，素材为自制合成讲解视频，字幕按实际分段时长手工组装，**不是校园实拍或模型转写结果**。原视频 37.320 秒，删除重录段落后保留 28.8 秒。
+
+![文本剪辑与已保存的选段](docs/images/text-editor-saved-plan.jpg)
+
+点击“二分查找的前提”定位到原视频 9.2 秒，再获取该时刻的真实画面。取消勾选第三段后，预览与成片都应跳过该段。
+
+![文字定位、删除句段与真实帧图](docs/images/text-editor-workspace.jpg)
+
+保存选段后提交异步导出，完成后获取下载地址。该演示成片实际下载并播放，FFprobe 测得 28.800 秒、H.264/AAC、1280×720。
+
+![实际导出完成与成片下载](docs/images/text-editor-export.jpg)
+
+手机编辑器按视频、画面、文本纵向排列，底部保留方案状态与保存/导出入口。
+
+<img src="docs/images/text-editor-mobile.jpg" alt="390px 手机文本编辑器" width="280" />
+
+支持单视频整句段选择；暂不支持单字剪辑、多轨或自由重排。同济 Look 平台关联仅列入 [TODO](TODO.md)，尚未接入校园认证或课程下载。
+
+### 自动生成可剪辑文字（2026-10-20）
+
+新增百炼 Paraformer 适配：上传后生成带起止时间的句段，可与原文字面板共用全文，并供内容分析使用。后台识别继续运行时可以关闭编辑器，重新打开会恢复状态查询。配置方式见 [百炼接入说明](docs/bailian-setup.md)。
+
+本地已真实调用百炼识别自制 37.320 秒口播，在未导入字幕的情况下获得 8 个句段；删除两句重录内容后真实生成并下载 26.140 秒 H.264/AAC 成片。识别有错字及标点差异，当前句段裁剪会缩短句间静音；真人口音、长视频精度及切点自然程度仍需补测。
+
+![百炼真实转写、选段与导出](docs/images/bailian-export.jpg)
+
+转写全文同步至原文字入口，重复提交复用已完成结果。原有 AI 总结所需的文本模型是单独配置；语音模型成功不能代替总结验收，后续真实联调结果见下方“AI 智能选段”。[真实问题与面试决策记录](docs/text-video-editor-decisions.md)。
+
+[设计、技术选择与个人扩展范围](docs/text-video-editor.md) · [实际验证与未验收项](docs/text-video-editor-validation.md) · [自制演示素材生成脚本](docs/examples/create-text-editor-demo.ps1)
+
+2026-10-20 最终验证：后端 139 项测试通过，前端 63 项测试及生产构建通过，缓存迁移独立复审通过。最新版本重启后，已完成文字稿、保存方案与导出结果均可恢复；26.140 秒成片在浏览器实际播放至结尾。
+
+2026-10-19 历史验证：前端 55 项测试及生产构建通过，后端 112 项测试通过；最终运行版本真实 HTTP 验收 23 项通过，另完成上述页面导出下载。文件选择器上传受本地浏览器扩展权限限制，未完成端到端验收；真实分片上传与字幕导入已通过 HTTP 联调。截至当日，旧模型功能和新时间戳 ASR 的真实调用尚未验收；时间戳 ASR 的后续结果见上方 2026-10-20 记录。
+
+## AI 智能选段（2026-10-20）
+
+在文本剪辑中填写目标，例如“保留知识讲解，删除重录与操作说明”。系统根据文字推荐句段，并解释保留理由；用户预览、应用和微调后，复用已有方案保存与 MP4 导出。模型只提供句段编号，真实时间由后端计算。恢复任务不重复提交模型，推荐不自动覆盖或保存手动选段。
+
+本地真实调用硅基流动 `DeepSeek-V3.2`，从同一份百炼 8 句文字稿中选出 3 句，预计 14.120 秒；实际生成、下载并播放至结尾的成片为 14.160 秒，H.264/AAC、1280×720。使用自制合成素材，不代表真人或长对话选段效果验收。
+
+![真实目标与 AI 推荐理由](docs/images/ai-smart-selection.jpg)
+
+原有 AI 总结也已通过真实模型完成调用与页面展示，但本次两轮处理后仍带有 Critic 未完全通过的提示，需人工核对；本机 OCR 未配置，本次依靠语音文字。未将这一结果描述为所有结论质量验收通过。
+
+本轮后端完整 159 项测试、前端完整 76 项测试及生产构建通过，独立复审通过。长稿采用有界分批处理，但真人长素材、切点听感尚未验收。首版只基于文字选段，不判断动作或表情，不自动配音。
+
+[实施计划](docs/superpowers/plans/2026-10-20-ai-smart-selection.md) · [真实验收与限制](docs/ai-smart-selection-validation.md) · [面试决策记录](docs/text-video-editor-decisions.md)
 
 ## 项目预览
 
@@ -63,7 +115,8 @@
 | 原有能力 | 视频导入、资料库、异步处理、转写、Video Agent、检索、SSE、任务恢复等均来自原项目；本次未重写业务实现 |
 | 界面改进 | 浅灰背景与白色面板、统一字体与按钮、蓝紫色主操作、列表布局、桌面双栏详情、手机适配、演示来源提示 |
 | 文档改进 | 本地截图、功能说明、来源致谢、运行方式与验证边界 |
-| 后续业务扩展 | 本次没有新增；口播编辑等想法尚未实现，不作为当前功能展示 |
+| 新增业务模块 | 文本时间轴、句段选择、画面定位、方案版本保存、异步 MP4 导出；百炼短合成口播的真实 ASR、选段与导出已验证 |
+| 后续扩展 | 同济 Look 平台关联；尚未接入校园认证、课程抓取或下载 |
 
 之前的深色荧光、斜切上传区与宣传式标题，已调整为任务导向的工作台。视觉约定见 [DESIGN.md](DESIGN.md)。
 
@@ -234,7 +287,7 @@ tesseract --version
 cp .env.example .env
 ```
 
-编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码并设置 `SILICONFLOW_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。
+编辑 `.env`，至少替换数据库、Redis、MinIO、Qdrant 的示例密码；使用原模型功能时另设 `SILICONFLOW_API_KEY`。全新数据库中 `DB_USERNAME` 与 `MYSQL_APP_USER` 应保持一致；`MYSQL_ROOT_PASSWORD` 仅供数据库初始化使用。密钥只保存在本地 `.env`，不要提交到仓库。磁盘空间不足时，可设置 `MINIO_DATA_DIR` 和 `EDITOR_TASK_ROOT`，分别存放视频对象与编辑临时文件；不要通过降低存储保护阈值绕过空间问题。
 
 `.env.example` 默认 LLM 为 `deepseek-ai/DeepSeek-V3.2`，实际可用性以服务商当前支持为准。`LLM_TIMEOUT_SECONDS` 默认是 `300`，用于避免长视频证据分析在模型响应尚未返回时过早超时；模型或超时配置变更后需要重启后端。
 
@@ -245,6 +298,10 @@ cp .env.example .env
 ```
 
 脚本会检查本机命令与版本、校验 Compose 配置，并等待 MySQL、Redis、MinIO、Qdrant 和 RocketMQ 启动。中间件与后端默认只监听 `127.0.0.1`，不会直接暴露到局域网；远程部署时再显式修改 `SERVER_ADDRESS` 并配置反向代理。
+
+Windows 可在项目根目录运行 `powershell -File scripts/dev-up.ps1`。该脚本只启动中间件，模型 Key、Java 和 OCR 在启动后端及验证相应功能时另行检查。如果本机已有 Redis 占用 6379，可将 `.env` 的 `REDIS_PORT` 改为其他空闲端口，例如 6380；后端与 Compose 会读取同一配置。
+
+MinIO [社区版已改为源码分发](https://github.com/minio/minio#source-only-distribution)，历史镜像在部分环境下无法拉取。可运行 `powershell -File scripts/dev-up.ps1 -SourceMinio`，从原配置相同的固定官方源码版本构建本地镜像，首轮需要下载 Go 构建环境与依赖。构建配置位于 `docker/minio/Dockerfile` 和 `docker-compose.source-minio.yml`；不需要本机另装 Go。当前本地环境及功能验证进度见 [实施记录](docs/text-video-editor-validation.md)。
 
 ### 3. 启动后端
 
@@ -258,6 +315,8 @@ cd server
 ```
 
 后端默认地址为 `http://localhost:9090`，启动时会初始化项目所需数据表。另开终端确认服务可用：
+
+Windows 也可在仓库根目录运行 `powershell -File scripts/dev-server.ps1 -JavaHome "你的 JDK 21 安装目录"`，脚本仅为当前进程设置 Java 和 `.env`。未填写 `SILICONFLOW_API_KEY` 时，旧文本模型客户端使用本地不可用地址初始化，避免向真实服务发送占位凭据；AI Agent 生成仍需配置文本模型。时间轴可独立使用百炼：设置 `EDITOR_TIMED_ASR_PROVIDER=bailian` 和 `DASHSCOPE_API_KEY`，详见 [配置说明](docs/bailian-setup.md)。旧纯文本提取入口会优先复用自动句段；两种时间戳服务均未配置且无已完成结果时，可以导入字幕继续剪辑。
 
 ```bash
 curl http://localhost:9090/health
