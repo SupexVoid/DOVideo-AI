@@ -1,5 +1,6 @@
 # 项目文档
 
+- [测试与复现](testing.md)：CI、关键风险用例和本地检查。
 - [技术架构](architecture.md)：任务链路、上下文、Agent 与剪辑设计。
 - [运行指南](running.md)：环境、配置、启动与常见问题。
 - [百炼接入](bailian-setup.md)：时间戳转写服务配置。

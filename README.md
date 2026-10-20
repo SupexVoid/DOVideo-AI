@@ -1,4 +1,25 @@
-# DoVideo-AI
+<h1 align="center">DoVideo-AI</h1>
+
+<p align="center">
+  <a href="https://github.com/SupexVoid/DOVideo-AI/actions/workflows/ci.yml"><img src="https://github.com/SupexVoid/DOVideo-AI/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/SupexVoid/DOVideo-AI/stargazers"><img src="https://img.shields.io/github/stars/SupexVoid/DOVideo-AI?style=flat&amp;color=007ec6" alt="GitHub stars"></a>
+  <img src="https://img.shields.io/badge/Java-21-orange" alt="Java 21">
+  <img src="https://img.shields.io/badge/Spring_Boot-3.5.9-6DB33F" alt="Spring Boot 3.5.9">
+  <img src="https://img.shields.io/badge/Vue-3-42b883" alt="Vue 3">
+  <img src="https://img.shields.io/badge/MySQL-8-4479A1" alt="MySQL 8">
+  <img src="https://img.shields.io/badge/Redis-7-DC382D" alt="Redis 7">
+  <img src="https://img.shields.io/badge/RocketMQ-5.3.4-D77310" alt="RocketMQ 5.3.4">
+  <img src="https://img.shields.io/badge/LangChain4j-Agent-1C3C3C" alt="LangChain4j Agent">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-007ec6" alt="MIT License"></a>
+</p>
+
+<p align="center">
+  <a href="#实际效果">功能演示</a> ·
+  <a href="#系统架构">系统架构</a> ·
+  <a href="#核心技术与实现亮点">技术亮点</a> ·
+  <a href="#快速运行">快速运行</a> ·
+  <a href="docs/testing.md">测试说明</a>
+</p>
 
 **面向长视频内容理解与视频编辑的 Video Agent 平台。**
 
@@ -40,6 +61,33 @@
 ![真实 AI 总结与校验提示](docs/images/real-ai-summary.jpg)
 
 </details>
+
+## 系统架构
+
+```mermaid
+flowchart LR
+    Web[Vue 工作台] --> API[Spring Boot API]
+    API --> Upload[分片上传与合并]
+    Upload --> Store[(MinIO 视频存储)]
+    API --> ASR[后台转写 · 百炼 ASR]
+    Store --> ASR
+    ASR --> Text[共享时间轴文字稿]
+    API --> MQ[RocketMQ 分析任务]
+    MQ --> Agent[VideoContext 与 Agent 分析]
+    Text --> Agent
+    Agent --> Report[结论与时间戳证据]
+    Text --> Select[后台智能选段 · 文本模型]
+    Select --> Check[句段编号与输出校验]
+    Check --> Draft[用户预览与编辑草稿]
+    Text --> Draft
+    Draft --> Snapshot[保存方案与版本快照]
+    Snapshot --> Export[后台 FFmpeg 导出]
+    Export --> Store
+    API -. 鉴权与任务状态 .-> DB[(MySQL)]
+    API -. 缓存与并发控制 .-> Redis[(Redis / Redisson)]
+```
+
+视频分析由消息队列调度；转写、选段和导出使用独立有界执行器。方案保存和导出分离，模型推荐经过校验与用户确认后才进入成片流程。[详细架构](docs/architecture.md)
 
 **主要技术：** Spring Boot · MySQL · Redis · RocketMQ · MyBatis-Plus · MinIO · LangChain4j · Vue 3 · FFmpeg
 
@@ -148,11 +196,11 @@ npm run dev
 
 ## 验证与边界
 
-最近一次完整验证：**后端 159 项测试、前端 76 项测试及构建通过**。短合成素材已走通真实转写、AI 推荐、人工确认、保存、导出与播放。
+最近一次完整后端测试 **161 项通过**（含 FFmpeg 新旧参数兼容回归）；前端 **76 项测试及构建通过**。GitHub CI 检查后端、前端与扩展，实际状态见顶部实时徽章。短合成素材已走通真实转写、AI 推荐、人工确认、保存、导出与播放。
 
 当前未专项测量“60 秒降至 50ms”及 GB 级弱网上传效果。按整句段、原顺序剪辑，会缩短句间停顿；选段仅根据文字，不能判断表情或动作。真人长对话与切点听感尚未验收；总结联调保留了 Critic 警告，OCR 分支未在本机验证。文件选择器受本机扩展权限限制，真实上传通过 HTTP 分片联调验证。
 
-[详细验收记录](docs/ai-smart-selection-validation.md)
+[测试与复现](docs/testing.md) · [详细验收记录](docs/ai-smart-selection-validation.md)
 
 ## 仓库结构
 
@@ -170,6 +218,10 @@ DoVideo-AI/
 ```
 
 本地运行产生的数据库、缓存、对象存储数据及构建产物不纳入 Git。
+
+## 参与与反馈
+
+欢迎提交可复现的问题或改进建议。请附操作步骤、预期结果、实际结果和必要的脱敏日志；不提交真实密钥、登录凭据或私人视频。开发检查方式见 [贡献指南](CONTRIBUTING.md)。
 
 ## 致谢与许可
 
